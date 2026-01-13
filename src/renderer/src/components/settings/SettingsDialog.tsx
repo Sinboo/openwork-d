@@ -51,7 +51,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
 
-  // Load existing API keys on mount
+  // Load existing settings on mount
   useEffect(() => {
     if (open) {
       loadApiKeys()

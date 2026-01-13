@@ -41,6 +41,18 @@ interface CustomAPI {
     setApiKey: (provider: string, apiKey: string) => Promise<void>
     getApiKey: (provider: string) => Promise<string | null>
   }
+  workspace: {
+    get: (threadId?: string) => Promise<string | null>
+    set: (threadId: string | undefined, path: string | null) => Promise<string | null>
+    select: (threadId?: string) => Promise<string | null>
+    syncToDisk: (threadId: string) => Promise<{
+      success: boolean
+      synced?: string[]
+      errors?: string[]
+      targetPath?: string
+      error?: string
+    }>
+  }
 }
 
 declare global {

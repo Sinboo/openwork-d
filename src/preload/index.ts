@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Thread, ModelConfig, StreamEvent, HITLDecision } from '../main/types'
+import type { Thread, ModelConfig, Provider, StreamEvent, HITLDecision } from '../main/types'
 
 // Simple electron API - replaces @electron-toolkit/preload
 const electronAPI = {
@@ -123,6 +123,9 @@ const api = {
     list: (): Promise<ModelConfig[]> => {
       return ipcRenderer.invoke('models:list')
     },
+    listProviders: (): Promise<Provider[]> => {
+      return ipcRenderer.invoke('models:listProviders')
+    },
     getDefault: (): Promise<string> => {
       return ipcRenderer.invoke('models:getDefault')
     },
@@ -134,6 +137,29 @@ const api = {
     },
     getApiKey: (provider: string): Promise<string | null> => {
       return ipcRenderer.invoke('models:getApiKey', provider)
+    },
+    deleteApiKey: (provider: string): Promise<void> => {
+      return ipcRenderer.invoke('models:deleteApiKey', provider)
+    }
+  },
+  workspace: {
+    get: (threadId?: string): Promise<string | null> => {
+      return ipcRenderer.invoke('workspace:get', threadId)
+    },
+    set: (threadId: string | undefined, path: string | null): Promise<string | null> => {
+      return ipcRenderer.invoke('workspace:set', { threadId, path })
+    },
+    select: (threadId?: string): Promise<string | null> => {
+      return ipcRenderer.invoke('workspace:select', threadId)
+    },
+    syncToDisk: (threadId: string): Promise<{
+      success: boolean
+      synced?: string[]
+      errors?: string[]
+      targetPath?: string
+      error?: string
+    }> => {
+      return ipcRenderer.invoke('workspace:syncToDisk', { threadId })
     }
   }
 }

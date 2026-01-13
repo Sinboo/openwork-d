@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Thread, Message, Todo, ModelConfig, HITLRequest, FileInfo, Subagent } from '@/types'
+import type { Thread, Message, Todo, ModelConfig, Provider, HITLRequest, FileInfo, Subagent } from '@/types'
 
 interface AppState {
   // Threads
@@ -22,8 +22,9 @@ interface AppState {
   // Subagents (from agent)
   subagents: Subagent[]
 
-  // Models
+  // Models and Providers
   models: ModelConfig[]
+  providers: Provider[]
   currentModel: string
 
   // Right panel state
@@ -66,7 +67,10 @@ interface AppState {
 
   // Model actions
   loadModels: () => Promise<void>
+  loadProviders: () => Promise<void>
   setCurrentModel: (modelId: string) => Promise<void>
+  setApiKey: (providerId: string, apiKey: string) => Promise<void>
+  deleteApiKey: (providerId: string) => Promise<void>
 
   // Panel actions
   setRightPanelTab: (tab: 'todos' | 'files' | 'subagents') => void
@@ -90,6 +94,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   workspacePath: null,
   subagents: [],
   models: [],
+  providers: [],
   currentModel: 'claude-sonnet-4-20250514',
   rightPanelTab: 'todos',
   settingsOpen: false,
@@ -111,7 +116,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       threads: [thread, ...state.threads],
       currentThreadId: thread.thread_id,
-      messages: []
+      messages: [],
+      todos: [],
+      workspaceFiles: [],
+      workspacePath: null,
+      subagents: []
     }))
     return thread
   },
@@ -323,9 +332,36 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ models, currentModel })
   },
 
+  loadProviders: async () => {
+    const providers = await window.api.models.listProviders()
+    set({ providers })
+  },
+
   setCurrentModel: async (modelId: string) => {
     await window.api.models.setDefault(modelId)
     set({ currentModel: modelId })
+  },
+
+  setApiKey: async (providerId: string, apiKey: string) => {
+    console.log('[Store] setApiKey called:', { providerId, keyLength: apiKey.length })
+    try {
+      await window.api.models.setApiKey(providerId, apiKey)
+      console.log('[Store] API key saved via IPC')
+      // Reload providers and models to update availability
+      await get().loadProviders()
+      await get().loadModels()
+      console.log('[Store] Providers and models reloaded')
+    } catch (e) {
+      console.error('[Store] Failed to set API key:', e)
+      throw e
+    }
+  },
+
+  deleteApiKey: async (providerId: string) => {
+    await window.api.models.deleteApiKey(providerId)
+    // Reload providers and models to update availability
+    await get().loadProviders()
+    await get().loadModels()
   },
 
   // Panel actions

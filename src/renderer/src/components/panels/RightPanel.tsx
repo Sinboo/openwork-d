@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { ListTodo, FolderTree, GitBranch, ChevronRight, ChevronDown, CheckCircle2, Circle, Clock, XCircle, GripHorizontal } from 'lucide-react'
+import { ListTodo, FolderTree, GitBranch, ChevronRight, ChevronDown, CheckCircle2, Circle, Clock, XCircle, GripHorizontal, Download, FolderSync, Loader2, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import type { Todo } from '@/types'
 
 const HEADER_HEIGHT = 40 // px
@@ -433,24 +434,115 @@ function TaskItem({ todo }: { todo: Todo }) {
 }
 
 function FilesContent() {
-  const { workspaceFiles, workspacePath } = useAppStore()
+  const { workspaceFiles, workspacePath, currentThreadId, setWorkspacePath } = useAppStore()
+  const [syncing, setSyncing] = useState(false)
+  const [syncSuccess, setSyncSuccess] = useState(false)
   
-  if (workspaceFiles.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center text-center text-sm text-muted-foreground py-8 px-4">
-        <FolderTree className="size-8 mb-2 opacity-50" />
-        <span>No workspace files</span>
-        <span className="text-xs mt-1">Files appear when the agent accesses them</span>
-      </div>
-    )
+  // Load workspace path for current thread
+  useEffect(() => {
+    async function loadWorkspacePath() {
+      if (currentThreadId) {
+        const path = await window.api.workspace.get(currentThreadId)
+        setWorkspacePath(path)
+      }
+    }
+    loadWorkspacePath()
+  }, [currentThreadId, setWorkspacePath])
+  
+  // Handle selecting a workspace folder
+  async function handleSelectFolder() {
+    if (!currentThreadId) return
+    setSyncing(true)
+    try {
+      const path = await window.api.workspace.select(currentThreadId)
+      if (path) {
+        setWorkspacePath(path)
+      }
+    } catch (e) {
+      console.error('[FilesContent] Select folder error:', e)
+    } finally {
+      setSyncing(false)
+    }
   }
-
+  
+  // Handle sync to disk
+  async function handleSyncToDisk() {
+    if (!currentThreadId) return
+    
+    // If no files, just select a folder
+    if (workspaceFiles.length === 0) {
+      await handleSelectFolder()
+      return
+    }
+    
+    setSyncing(true)
+    setSyncSuccess(false)
+    
+    try {
+      const result = await window.api.workspace.syncToDisk(currentThreadId)
+      
+      if (result.success) {
+        setSyncSuccess(true)
+        if (result.targetPath) {
+          setWorkspacePath(result.targetPath)
+        }
+        setTimeout(() => setSyncSuccess(false), 2000)
+      } else {
+        console.error('[FilesContent] Sync failed:', result.error)
+      }
+    } catch (e) {
+      console.error('[FilesContent] Sync error:', e)
+    } finally {
+      setSyncing(false)
+    }
+  }
+  
   return (
-    <div>
-      {workspacePath && (
-        <div className="px-3 py-2 text-[10px] text-muted-foreground truncate border-b border-border/50 bg-background/30">
-          {workspacePath}
+    <div className="flex flex-col h-full">
+      {/* Header with sync button */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-background/30">
+        <span className="text-[10px] text-muted-foreground truncate flex-1" title={workspacePath || undefined}>
+          {workspacePath ? workspacePath.split('/').pop() : 'No folder linked'}
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={workspaceFiles.length > 0 ? handleSyncToDisk : handleSelectFolder}
+          disabled={syncing || !currentThreadId}
+          className="h-5 px-1.5 text-[10px]"
+          title={
+            workspaceFiles.length > 0 
+              ? (workspacePath ? `Sync to ${workspacePath}` : 'Sync files to disk')
+              : (workspacePath ? `Change folder` : 'Link sync folder')
+          }
+        >
+          {syncing ? (
+            <Loader2 className="size-3 animate-spin" />
+          ) : syncSuccess ? (
+            <Check className="size-3 text-status-nominal" />
+          ) : workspaceFiles.length > 0 ? (
+            <Download className="size-3" />
+          ) : (
+            <FolderSync className="size-3" />
+          )}
+          <span className="ml-1">
+            {workspaceFiles.length > 0 ? 'Sync' : (workspacePath ? 'Change' : 'Link')}
+          </span>
+        </Button>
+      </div>
+      
+      {/* File list or empty state */}
+      {workspaceFiles.length === 0 ? (
+        <div className="flex flex-col items-center justify-center text-center text-sm text-muted-foreground py-8 px-4 flex-1">
+          <FolderTree className="size-8 mb-2 opacity-50" />
+          <span>No workspace files</span>
+          <span className="text-xs mt-1">
+            {workspacePath 
+              ? `Linked to ${workspacePath.split('/').pop()}`
+              : 'Click "Link" to set a sync folder'}
+          </span>
         </div>
+      ) : (
         <div className="py-1 overflow-auto flex-1">
           {workspaceFiles.map(file => (
             <div
@@ -467,6 +559,7 @@ function FilesContent() {
             </div>
           ))}
         </div>
+      )}
     </div>
   )
 }

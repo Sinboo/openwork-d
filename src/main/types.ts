@@ -24,11 +24,20 @@ export interface Run {
   metadata?: Record<string, unknown>
 }
 
+// Provider configuration
+export type ProviderId = 'anthropic' | 'openai' | 'google' | 'ollama'
+
+export interface Provider {
+  id: ProviderId
+  name: string
+  hasApiKey: boolean
+}
+
 // Model configuration
 export interface ModelConfig {
   id: string
   name: string
-  provider: 'anthropic' | 'openai' | 'google' | 'ollama'
+  provider: ProviderId
   model: string
   description?: string
   available: boolean

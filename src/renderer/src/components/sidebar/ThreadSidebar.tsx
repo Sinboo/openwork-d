@@ -5,7 +5,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { useAppStore } from '@/lib/store'
 import { cn, formatRelativeTime, truncate } from '@/lib/utils'
-import { ModelSelector } from './ModelSelector'
 import { SettingsDialog } from '@/components/settings/SettingsDialog'
 import {
   ContextMenu,
@@ -67,8 +66,6 @@ export function ThreadSidebar(): React.JSX.Element {
           <Plus className="size-4" />
         </Button>
       </div>
-
-      <Separator />
 
       {/* Thread List */}
       <ScrollArea className="flex-1 min-h-0">
@@ -156,10 +153,8 @@ export function ThreadSidebar(): React.JSX.Element {
 
       <Separator />
 
-      {/* Model Selector */}
-      <div className="p-4 space-y-4">
-        <ModelSelector />
-
+      {/* Settings */}
+      <div className="p-4">
         <Button
           variant="ghost"
           size="sm"
